@@ -1,0 +1,27 @@
+{
+  "name": "felconca/php-pulse-framework",
+  "description": "PHP-Pulse is a Laravel-inspired PHP framework designed for building modern APIs. It features PSR-4 autoloading, a CLI tool for generating controllers, JWT-based authentication, environment-based configuration, and a flexible routing system—all without the overhead of a full framework.",
+  "type": "project",
+  "authors": [
+    {
+      "name": "felcon albaladejo"
+    }
+  ],
+  "require": {
+    "php": ">=7.4",
+    "firebase/php-jwt": "^6.10",
+    "vlucas/phpdotenv": "^5.6",
+    "symfony/console": "^5.4",
+    "felconca/redis-cache": "v1",
+    "felconca/session-cookies-manager": "^1.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "App\\": "app/",
+      "Includes\\": "includes/"
+    }
+  },
+  "scripts": {
+    "serve": "php -S localhost:8000 server.php"
+  }
+}
