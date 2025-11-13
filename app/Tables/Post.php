@@ -2,13 +2,10 @@
 
 namespace App\Tables;
 
-class UserSimple
+class Post
 {
     public int $id = 0;
     public string $name = '';
-    public string $username = '';
-    public string $password = '';
     public $created_at;
     public $updated_at;
-    public bool $deleted = false;
 }

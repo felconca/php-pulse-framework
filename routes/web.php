@@ -4,8 +4,10 @@ use App\Routes\Route;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\AuthSession;
 
-Route::get('users', 'AppController@index', [new AuthMiddleware()]);
+Route::get('users', 'AppController@index');
 Route::post('users', 'AppController@store');
+Route::put('users', 'AppController@update');
+Route::delete("users", "AppController@delete");
 
 Route::get('users/{id}', 'AppController@show', [new AuthMiddleware()]);
 Route::get('users/id/{id}/date/{date}', 'AppController@showByIdDate', [new AuthMiddleware()]);

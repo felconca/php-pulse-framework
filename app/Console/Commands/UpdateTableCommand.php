@@ -116,8 +116,29 @@ class UpdateTableCommand extends Command
         return $columns;
     }
 
+    // private function inferColumn($phpType, $name)
+    // {
+    //     $map = [
+    //         'int' => ['type' => 'INT', 'nullable' => false],
+    //         'float' => ['type' => 'FLOAT', 'nullable' => true],
+    //         'bool' => ['type' => 'TINYINT', 'length' => 1, 'nullable' => false],
+    //         'string' => ['type' => 'VARCHAR', 'length' => 255, 'nullable' => true],
+    //         'DateTime' => ['type' => 'DATETIME', 'nullable' => true],
+    //     ];
+
+    //     return $map[$phpType] ?? ['type' => 'TEXT', 'nullable' => true];
+    // }
+
     private function inferColumn($phpType, $name)
     {
+        // Force datetime for created_at and updated_at
+        if ($name === 'created_at') {
+            return ['type' => 'DATETIME', 'nullable' => false, 'default' => 'CURRENT_TIMESTAMP'];
+        }
+        if ($name === 'updated_at') {
+            return ['type' => 'DATETIME', 'nullable' => false, 'default' => 'CURRENT_TIMESTAMP', 'on_update' => 'CURRENT_TIMESTAMP'];
+        }
+
         $map = [
             'int' => ['type' => 'INT', 'nullable' => false],
             'float' => ['type' => 'FLOAT', 'nullable' => true],

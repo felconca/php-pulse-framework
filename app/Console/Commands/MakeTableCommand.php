@@ -10,7 +10,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 class MakeTableCommand extends Command
 {
-    protected static $defaultName = 'migrate:table';
+    protected static $defaultName = 'make:table';
 
     protected function configure()
     {
@@ -39,7 +39,6 @@ class MakeTableCommand extends Command
 
         $withDefinition = $input->getOption('with-definition');
 
-        // --- Template for simple typed properties ---
         $simpleTemplate = <<<EOT
 <?php
 
@@ -49,8 +48,17 @@ class $name
 {
     public int \$id = 0;
     public string \$name = '';
-    public string \$created_at = '';
-    public string \$updated_at = '';
+
+    /**
+     * @type DATETIME
+     */
+    public \$created_at;
+
+    /**
+     * @type DATETIME
+     * @on_update CURRENT_TIMESTAMP
+     */
+    public \$updated_at;
 }
 EOT;
 

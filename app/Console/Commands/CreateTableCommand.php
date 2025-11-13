@@ -50,7 +50,7 @@ class CreateTableCommand extends Command
         }
 
         require_once $filePath;
-        $fqcn = "App\\Console\\Tables\\$tableClass";
+        $fqcn = "App\\Tables\\$tableClass";
 
         if (!class_exists($fqcn)) {
             $output->writeln("<error>Class '$fqcn' not found.</error>");
@@ -100,8 +100,30 @@ class CreateTableCommand extends Command
         return ['columns' => $columns];
     }
 
+    // private function inferColumn($phpType, $name)
+    // {
+    //     $map = [
+    //         'int' => ['type' => 'INT', 'nullable' => false],
+    //         'float' => ['type' => 'FLOAT', 'nullable' => true],
+    //         'bool' => ['type' => 'TINYINT', 'length' => 1, 'nullable' => false],
+    //         'string' => ['type' => 'VARCHAR', 'length' => 255, 'nullable' => true],
+    //         'DateTime' => ['type' => 'DATETIME', 'nullable' => true],
+    //     ];
+
+    //     return $map[$phpType] ?? ['type' => 'TEXT', 'nullable' => true];
+    // }
+
+
     private function inferColumn($phpType, $name)
     {
+        // Force datetime for created_at and updated_at
+        if ($name === 'created_at') {
+            return ['type' => 'DATETIME', 'nullable' => false, 'default' => 'CURRENT_TIMESTAMP'];
+        }
+        if ($name === 'updated_at') {
+            return ['type' => 'DATETIME', 'nullable' => false, 'default' => 'CURRENT_TIMESTAMP', 'on_update' => 'CURRENT_TIMESTAMP'];
+        }
+
         $map = [
             'int' => ['type' => 'INT', 'nullable' => false],
             'float' => ['type' => 'FLOAT', 'nullable' => true],
@@ -112,6 +134,7 @@ class CreateTableCommand extends Command
 
         return $map[$phpType] ?? ['type' => 'TEXT', 'nullable' => true];
     }
+
 
     private function buildCreateTableSQL($tableName, $definition)
     {
@@ -126,15 +149,17 @@ class CreateTableCommand extends Command
             $length = isset($props['length']) ? "({$props['length']})" : '';
             $nullable = isset($props['nullable']) && $props['nullable'] === false ? 'NOT NULL' : 'NULL';
             $default = isset($props['default']) ? "DEFAULT {$props['default']}" : '';
+            $onUpdate = isset($props['on_update']) ? "ON UPDATE {$props['on_update']}" : '';
             $autoIncrement = !empty($props['auto_increment']) ? 'AUTO_INCREMENT' : '';
             $comment = isset($props['comment']) ? "COMMENT '{$props['comment']}'" : '';
 
-            $columnsSql[] = "`$name` $type$length $nullable $default $autoIncrement $comment";
+            $columnsSql[] = "`$name` $type$length $nullable $default $onUpdate $autoIncrement $comment";
 
             if (!empty($props['primary'])) $primaryKeys[] = "`$name`";
             if (!empty($props['index'])) $indexes[] = $name;
             if (!empty($props['unique'])) $uniques[] = $name;
         }
+
 
         if (!empty($primaryKeys)) {
             $columnsSql[] = "PRIMARY KEY (" . implode(', ', $primaryKeys) . ")";

@@ -117,8 +117,28 @@ class CreateDatabaseCommand extends Command
     /**
      * Map PHP types → SQL types (can be expanded easily)
      */
+    // private function inferColumn($phpType, $name)
+    // {
+    //     $map = [
+    //         'int' => ['type' => 'INT', 'nullable' => false],
+    //         'float' => ['type' => 'FLOAT', 'nullable' => true],
+    //         'bool' => ['type' => 'TINYINT', 'length' => 1, 'nullable' => false],
+    //         'string' => ['type' => 'VARCHAR', 'length' => 255, 'nullable' => true],
+    //         'DateTime' => ['type' => 'DATETIME', 'nullable' => true],
+    //     ];
+
+    //     return $map[$phpType] ?? ['type' => 'TEXT', 'nullable' => true];
+    // }
     private function inferColumn($phpType, $name)
     {
+        // Force datetime for created_at and updated_at
+        if ($name === 'created_at') {
+            return ['type' => 'DATETIME', 'nullable' => false, 'default' => 'CURRENT_TIMESTAMP'];
+        }
+        if ($name === 'updated_at') {
+            return ['type' => 'DATETIME', 'nullable' => false, 'default' => 'CURRENT_TIMESTAMP', 'on_update' => 'CURRENT_TIMESTAMP'];
+        }
+
         $map = [
             'int' => ['type' => 'INT', 'nullable' => false],
             'float' => ['type' => 'FLOAT', 'nullable' => true],
@@ -143,10 +163,11 @@ class CreateDatabaseCommand extends Command
             $length = isset($props['length']) ? "({$props['length']})" : '';
             $nullable = isset($props['nullable']) && $props['nullable'] === false ? 'NOT NULL' : 'NULL';
             $default = isset($props['default']) ? "DEFAULT {$props['default']}" : '';
+            $onUpdate = isset($props['on_update']) ? "ON UPDATE {$props['on_update']}" : '';
             $autoIncrement = !empty($props['auto_increment']) ? 'AUTO_INCREMENT' : '';
             $comment = isset($props['comment']) ? "COMMENT '{$props['comment']}'" : '';
 
-            $columnsSql[] = "`$name` $type$length $nullable $default $autoIncrement $comment";
+            $columnsSql[] = "`$name` $type$length $nullable $default $onUpdate $autoIncrement $comment";
 
             if (!empty($props['primary'])) $primaryKeys[] = "`$name`";
             if (!empty($props['index'])) $indexes[] = $name;
