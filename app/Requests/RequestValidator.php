@@ -2,69 +2,127 @@
 
 namespace App\Requests;
 
+use DateTime;
+
 class RequestValidator
 {
     public static function validate($data, $rules)
     {
         $errors = [];
+
         foreach ($rules as $field => $rule) {
-            $rulesArray = explode('|', $rule); // Split rules like "required|email"
+            $rulesArray = explode('|', $rule);
             $fieldExists = array_key_exists($field, $data);
             $value = $fieldExists ? $data[$field] : null;
 
             foreach ($rulesArray as $singleRule) {
-                // Handle parameterized rules (e.g., min:5)
                 $ruleParts = explode(':', $singleRule);
                 $ruleName = $ruleParts[0];
-                $ruleValue = isset($ruleParts[1]) ? $ruleParts[1] : null;
+                $ruleValue = $ruleParts[1] ?? null;
 
-                // Required rule
+                //-----------------------------
+                //  REQUIRED CHECK
+                //-----------------------------
                 if ($ruleName === 'required') {
-                    if (!$fieldExists || empty($value)) {
+                    if (!$fieldExists || $value === null || $value === '' || $value === []) {
                         $errors[$field] = "$field is required";
+                        continue;
                     }
                 }
 
-                // Only validate further if field exists and has a value
-                if ($fieldExists && !empty($value)) {
-                    switch ($ruleName) {
-                        case 'numeric':
-                            if (!is_numeric($value)) {
-                                $errors[$field] = "$field must be numeric";
-                            }
-                            break;
-                        case 'email':
-                            if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                                $errors[$field] = "$field must be a valid email address";
-                            }
-                            break;
-                        case 'phone':
-                            // Simple phone validation (e.g., +1234567890 or 123-456-7890)
-                            if (!preg_match('/^\+?[1-9]\d{1,14}$|^[\d-]{7,15}$/', $value)) {
-                                $errors[$field] = "$field must be a valid phone number";
-                            }
-                            break;
-                        case 'date':
-                            // Check if it's a valid date (e.g., YYYY-MM-DD)
-                            $d = DateTime::createFromFormat('Y-m-d', $value);
-                            if (!$d || $d->format('Y-m-d') !== $value) {
-                                $errors[$field] = "$field must be a valid date (YYYY-MM-DD)";
-                            }
-                            break;
-                        case 'min':
-                            if ($ruleValue && strlen($value) < (int)$ruleValue) {
-                                $errors[$field] = "$field must be at least $ruleValue characters";
-                            }
-                            break;
-                        case 'max':
-                            if ($ruleValue && strlen($value) > (int)$ruleValue) {
-                                $errors[$field] = "$field must not exceed $ruleValue characters";
-                            }
-                            break;
-                    }
+                // Stop checking additional rules if required already failed
+                if (isset($errors[$field])) continue;
+
+                //-----------------------------
+                //  OTHER TYPE VALIDATIONS
+                //-----------------------------
+                switch ($ruleName) {
+
+                    case 'string':
+                        if (!is_string($value)) {
+                            $errors[$field] = "$field must be a string";
+                        }
+                        break;
+
+                    case 'array':
+                        if (!is_array($value)) {
+                            $errors[$field] = "$field must be an array";
+                        }
+                        break;
+
+                    case 'object':
+                        if (!is_object($value)) {
+                            $errors[$field] = "$field must be an object";
+                        }
+                        break;
+
+                    case 'boolean':
+                    case 'bool':
+                        if (!is_bool($value) && !in_array($value, ['0', '1', 0, 1], true)) {
+                            $errors[$field] = "$field must be true or false";
+                        }
+                        break;
+
+                    case 'integer':
+                    case 'int':
+                        if (!filter_var($value, FILTER_VALIDATE_INT)) {
+                            $errors[$field] = "$field must be an integer";
+                        }
+                        break;
+
+                    case 'float':
+                    case 'double':
+                        if (!filter_var($value, FILTER_VALIDATE_FLOAT)) {
+                            $errors[$field] = "$field must be a floating number";
+                        }
+                        break;
+
+                    case 'numeric':
+                        if (!is_numeric($value)) {
+                            $errors[$field] = "$field must be numeric";
+                        }
+                        break;
+
+                    case 'email':
+                        if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                            $errors[$field] = "$field must be a valid email address";
+                        }
+                        break;
+
+                    case 'phone':
+                        if (!preg_match('/^\+?[1-9]\d{1,14}$|^[\d-]{7,15}$/', $value)) {
+                            $errors[$field] = "$field must be a valid phone number";
+                        }
+                        break;
+
+                    case 'date':
+                        $d = DateTime::createFromFormat('Y-m-d', $value);
+                        if (!$d || $d->format('Y-m-d') !== $value) {
+                            $errors[$field] = "$field must be a valid date (YYYY-MM-DD)";
+                        }
+                        break;
+
+                    case 'min':
+                        if (is_string($value) && strlen($value) < (int)$ruleValue) {
+                            $errors[$field] = "$field must be at least $ruleValue characters";
+                        }
+                        if (is_array($value) && count($value) < (int)$ruleValue) {
+                            $errors[$field] = "$field must have at least $ruleValue items";
+                        }
+                        break;
+
+                    case 'max':
+                        if (is_string($value) && strlen($value) > (int)$ruleValue) {
+                            $errors[$field] = "$field must not exceed $ruleValue characters";
+                        }
+                        if (is_array($value) && count($value) > (int)$ruleValue) {
+                            $errors[$field] = "$field must not exceed $ruleValue items";
+                        }
+                        break;
                 }
             }
         }
+
         return $errors;
     }
 }
