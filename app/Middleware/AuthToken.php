@@ -5,7 +5,7 @@ namespace App\Middleware;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
-class AuthMiddleware
+class AuthToken
 {
     private $jwtSecret;
 

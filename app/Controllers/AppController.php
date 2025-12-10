@@ -119,15 +119,16 @@ class AppController extends Rest
         $rowsDeleted = $conn->delete('usersimple')
             ->WHERE(['id' => 1]);
 
-        echo "Rows deleted: $rowsDeleted";
-
+        $this->response("Rows deleted: $rowsDeleted", 200);
         // UPDATE still works
         $rowsUpdated = $conn->update('usersimple', ['username' => 'new@example.com'])
             ->WHERE(['id' => 2]);
+        $this->response("Rows updated: $rowsUpdated", 200);
 
         // SELECT still works
         $users = $conn->SELECT('*', 'usersimple')
             ->WHERE(['deleted' => 0])
             ->get();
+        $this->response("Selected List: $users", 200);
     }
 }
