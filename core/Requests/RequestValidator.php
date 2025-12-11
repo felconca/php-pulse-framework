@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Requests;
+namespace Core\Requests;
 
 use DateTime;
 

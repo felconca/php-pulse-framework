@@ -50,12 +50,12 @@ class Rest
         return $status[$this->_code] ?? 'Unknown Status';
     }
 
-    protected function get_request_method()
+    public function get_request_method()
     {
         return $_SERVER['REQUEST_METHOD'];
     }
 
-    protected function inputs()
+    public function inputs()
     {
         $contentType = isset($_SERVER['CONTENT_TYPE']) ? strtolower($_SERVER['CONTENT_TYPE']) : '';
         $method = $this->get_request_method();

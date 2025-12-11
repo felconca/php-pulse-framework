@@ -3,8 +3,7 @@
 namespace App\Controllers;
 
 use Includes\Rest;
-use App\Database\Database;
-use App\Requests\RequestValidator;
+use Core\Database\Database;
 use Firebase\J\WT\JWT;
 use Firebase\JWT\Key;
 
@@ -29,7 +28,7 @@ class AppController extends Rest
         $this->db = new Database();
     }
 
-    public function index()
+    public function index($request, $response)
     {
 
         $users = $this->db->marsdb()
@@ -39,18 +38,12 @@ class AppController extends Rest
             ->LIMIT(10)
             ->get();
 
+        $rows = [];
         foreach ($users as $user) {
             $rows[] = $user;
         }
-        $this->response(['data' => $rows], 200);
+        return $response(['data' => $rows], 200);
 
-        $singleUser = $this->db->getConnection("marsdb")
-            ->SELECT('*', 'usersimple')
-            ->WHERE(['id' => 1])
-            ->first();
-
-        // // echo $singleUser->email;
-        $this->response(['message' => $singleUser->username], 200);
 
         // $conn = $this->db->marsdb;
 
@@ -99,17 +92,30 @@ class AppController extends Rest
 
         $this->response(["data" => $insertedId], 200);
     }
-    public function update()
+    public function update($request,  $response)
     {
         $conn = $this->db->marsdb;
 
+        // $rules = ['id' => 'required|int|min:1', "password" => "required|string|min:8"];
+        // $errors = RequestValidator::validate($request, $rules);
+        // if (!empty($errors)) {
+        //     $this->response(['errors' => $errors], 400);
+        // }
+        $input = $request->validate([
+            'id'       => 'required|int|min:1',
+            'password' => 'required|string|min:8',
+        ]);
+
+
+        $id = $input['id'];
+        $password = $input['password'];
         // UPDATE executes immediately when WHERE() is called
         $rowsUpdated = $conn->update('usersimple', [
             'username' => 'updated@example.com',
-            'password' => password_hash('123456', PASSWORD_DEFAULT),
+            'password' => password_hash($password, PASSWORD_DEFAULT),
             'updated_at' => date('Y-m-d H:i:s')
-        ])->WHERE(['id' => 1]);
-        $this->response(["data" => $rowsUpdated], 200);
+        ])->WHERE(['id' => $id]);
+        return  $response(["data" => $rowsUpdated], 200);
     }
     public function delete()
     {
@@ -130,5 +136,19 @@ class AppController extends Rest
             ->WHERE(['deleted' => 0])
             ->get();
         $this->response("Selected List: $users", 200);
+    }
+    public function edit($request, $response, $params)
+    {
+        $id = $params->validate(['id' => 'required|int|min:1',]);
+
+        $singleUser = $this->db->getConnection("marsdb")
+            ->SELECT('*', 'usersimple')
+            ->WHERE(['id' => $id["id"]])
+            ->first();
+        if ($singleUser) {
+            return $response(['message' => $singleUser->username], 200);
+        } else {
+            return $response(['message' => "error"], 400);
+        }
     }
 }

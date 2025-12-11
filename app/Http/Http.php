@@ -1,15 +1,16 @@
 <?php
 
-use App\Routes\Route;
-use App\Middleware\AuthToken;
-use App\Middleware\AuthSession;
+use Core\Routes\Route;
+use Core\Middleware\AuthToken;
+use Core\Middleware\AuthSession;
 
 Route::get('users', 'AppController@index');
 Route::post('users', 'AppController@store');
 Route::put('users', 'AppController@update');
 Route::delete("users", "AppController@delete");
+Route::get("user/{id}", "AppController@edit");
 
-Route::get('users/{id}', 'AppController@show', [new AuthToken()]);
+// Route::get('users/{id}', 'AppController@edit', [new AuthToken()]);
 Route::get('users/id/{id}/date/{date}', 'AppController@showByIdDate', [new AuthToken()]);
 
 Route::post('index', 'AppController@index', [new AuthToken()]);

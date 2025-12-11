@@ -1,22 +1,22 @@
 <?php
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Symfony\Component\Console\Application;
-use App\Console\Commands\CreateControllerCommand;
-use App\Console\Commands\CreateDatabaseCommand;
-use App\Console\Commands\CreateTableCommand;
-use App\Console\Commands\MakeTableCommand;
-use App\Console\Commands\UpdateTableCommand;
+use Symfony\Component\Console\Corelication;
+use Core\Console\Commands\CreateControllerCommand;
+use Core\Console\Commands\CreateDatabaseCommand;
+use Core\Console\Commands\CreateTableCommand;
+use Core\Console\Commands\MakeTableCommand;
+use Core\Console\Commands\UpdateTableCommand;
 
-$app = new Application('Routing Console', '1.0.0');
+$Core = new Corelication('Routing Console', '1.0.0');
 
 // Register commands
-$app->add(new CreateControllerCommand());
-$app->add(new CreateDatabaseCommand());
-$app->add(new CreateTableCommand());
+$Core->add(new CreateControllerCommand());
+$Core->add(new CreateDatabaseCommand());
+$Core->add(new CreateTableCommand());
 
 // tables arguments for console
-$app->add(new MakeTableCommand());
-$app->add(new UpdateTableCommand());
-// run application commands
-$app->run();
+$Core->add(new MakeTableCommand());
+$Core->add(new UpdateTableCommand());
+// run Corelication commands
+$Core->run();

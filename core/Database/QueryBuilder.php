@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Database;
+namespace Core\Database;
 
 class QueryBuilder
 {
@@ -116,6 +116,7 @@ class QueryBuilder
         $rows = $this->get();
         return $rows[0] ?? null;
     }
+
     public function reset()
     {
         $this->select = '*';
