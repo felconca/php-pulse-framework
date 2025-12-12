@@ -13,14 +13,14 @@ class AuthSession
 
     public function handle($controller, $next)
     {
-        session_name('GMED_INVENTORY_SESS'); // unique, branded
+        session_name($_ENV['AUTH_SESSION_NAME'] ?? 'PHP_SESSION');
         // ✅ Secure session settings before starting
         if (session_status() === PHP_SESSION_NONE) {
             session_set_cookie_params([
-                'lifetime' => 0,
-                'secure' => true,       // only send cookie via HTTPS
-                'httponly' => true,     // JS can’t read it
-                'samesite' => 'Strict'  // prevent CSRF
+                'lifetime' => (int)($_ENV['AUTH_SESSION_LIFETIME'] ?? 0),
+                'secure' => ($_ENV['AUTH_SESSION_SECURE'] ?? '') === TRUE,
+                'httponly' => ($_ENV['AUTH_SESSION_HTTPONLY'] ?? '') === TRUE,
+                'samesite' => $_ENV['AUTH_SESSION_SAMESITE'] ?? 'Strict'
             ]);
             session_start();
         }
