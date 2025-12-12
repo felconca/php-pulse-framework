@@ -39,7 +39,7 @@ class UpdateTableCommand extends Command
             return Command::FAILURE;
         }
 
-        $tablesDir = __DIR__ . '/../../Tables';
+        $tablesDir = __DIR__ . '/../../../app/Tables';
         $filePath = $tablesDir . '/' . $tableClass . '.php';
 
         if (!file_exists($filePath)) {

@@ -30,7 +30,7 @@ class MakeTableCommand extends Command
     {
         $name = ucfirst($input->getArgument('name'));
         $namespace = 'App\\Tables';
-        $filePath = __DIR__ . '/../../Tables/' . $name . '.php';
+        $filePath = __DIR__ . '/../../../app/Tables/' . $name . '.php';
 
         if (file_exists($filePath)) {
             $output->writeln("<error>Table class '$name' already exists!</error>");

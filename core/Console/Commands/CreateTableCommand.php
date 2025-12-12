@@ -42,7 +42,7 @@ class CreateTableCommand extends Command
         }
 
         // Load table class file
-        $tablesDir = __DIR__ . '/../../tables';
+        $tablesDir = __DIR__ . '/../../../app/tables';
         $filePath = $tablesDir . '/' . $tableClass . '.php';
         if (!file_exists($filePath)) {
             $output->writeln("<error>Table class file '$tableClass.php' does not exist.</error>");

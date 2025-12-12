@@ -24,7 +24,7 @@ class CreateControllerCommand extends Command
         $name = $input->getArgument('name');
         $controllerName = ucfirst($name) . 'Controller'; // e.g., User → UserController
         $namespace = 'App\\Controllers';
-        $filePath = __DIR__ . '/../../Controllers/' . $controllerName . '.php';
+        $filePath = __DIR__ . '/../../../app/Controllers/' . $controllerName . '.php';
 
         if (file_exists($filePath)) {
             $output->writeln("<error>Controller $controllerName already exists!</error>");
@@ -37,9 +37,6 @@ namespace $namespace;
 
 use Includes\\Rest;
 use App\\Database\\Database;
-use App\\Requests\\RequestValidator;
-use Firebase\J\WT\\JWT;
-use Firebase\\JWT\\Key;
 
 class $controllerName extends Rest
 {
@@ -58,7 +55,6 @@ class $controllerName extends Rest
 
         parent::__construct();
         
-        \$this->jwtSecret = \$_ENV['JWT_SECRET'] ?? 'default-secret';
         \$this->db = new Database();
     }
 
