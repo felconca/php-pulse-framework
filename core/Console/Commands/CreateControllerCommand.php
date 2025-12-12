@@ -36,7 +36,7 @@ class CreateControllerCommand extends Command
 namespace $namespace;
 
 use Includes\\Rest;
-use App\\Database\\Database;
+use Core\\Database\\Database;
 
 class $controllerName extends Rest
 {
