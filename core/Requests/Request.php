@@ -2,10 +2,9 @@
 
 namespace Core\Requests;
 
-use Core\Requests\RequestValidator;
-use Includes\Rest;
+use ArrayAccess;
 
-class Request
+class Request implements ArrayAccess
 {
     protected array $data;
 
@@ -13,6 +12,10 @@ class Request
     {
         $this->data = $data ?? [];
     }
+
+    // =====================
+    // Existing methods
+    // =====================
 
     public function all(): array
     {
@@ -29,11 +32,35 @@ class Request
         $errors = RequestValidator::validate($this->data, $rules);
 
         if (!empty($errors)) {
-            $rest = new Rest();
-            echo $rest->response(['errors' => $errors], 400);
+            http_response_code(400);
+            echo json_encode(['errors' => $errors]);
             exit;
         }
 
         return $this->data;
+    }
+
+    // =====================
+    // ArrayAccess methods
+    // =====================
+
+    public function offsetExists($offset): bool
+    {
+        return isset($this->data[$offset]);
+    }
+
+    public function offsetGet($offset)
+    {
+        return $this->data[$offset] ?? null;
+    }
+
+    public function offsetSet($offset, $value): void
+    {
+        $this->data[$offset] = $value;
+    }
+
+    public function offsetUnset($offset): void
+    {
+        unset($this->data[$offset]);
     }
 }
