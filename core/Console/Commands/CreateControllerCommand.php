@@ -58,9 +58,9 @@ class $controllerName extends Rest
         \$this->db = new Database();
     }
 
-    public function index()
+    public function index(\$request, \$response, \$params)
     {
-        \$this->response(['message' => '$controllerName index'], 200);
+        return \$response(['message' => '$controllerName index'], 200);
     }
 }
 EOT;
