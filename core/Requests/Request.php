@@ -3,6 +3,7 @@
 namespace Core\Requests;
 
 use ArrayAccess;
+use Includes\Rest;
 
 class Request implements ArrayAccess
 {
@@ -32,8 +33,8 @@ class Request implements ArrayAccess
         $errors = RequestValidator::validate($this->data, $rules);
 
         if (!empty($errors)) {
-            http_response_code(400);
-            echo json_encode(['errors' => $errors]);
+            $rest = new Rest();
+            return $rest->response(['errors' => $errors], 400);
             exit;
         }
 
