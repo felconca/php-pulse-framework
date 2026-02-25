@@ -29,6 +29,27 @@ class QueryBuilder
         if ($table) $this->table = $table;
         return $this;
     }
+    public function ORDERBY($column, $direction = 'ASC')
+    {
+        if (strpos($column, '.') !== false) {
+            $this->orderBy = "ORDER BY $column $direction";
+        } else {
+            $this->orderBy = "ORDER BY `$column` $direction";
+        }
+
+        return $this;
+    }
+    public function GROUPBY($column)
+    {
+        $columnWrap = $this->wrapColumn($column); // already wrapped
+        $this->groupBy = "GROUP BY $columnWrap";   // do NOT add extra backticks
+        return $this;
+    }
+    public function LIMIT($limit, $offset = null)
+    {
+        $this->limit = $offset !== null ? "LIMIT $offset, $limit" : "LIMIT $limit";
+        return $this;
+    }
 
     public function __call($name, $arguments)
     {
