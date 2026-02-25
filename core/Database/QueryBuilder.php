@@ -15,6 +15,8 @@ class QueryBuilder
     private $limit = '';
     private $groupBy = '';
     private $deleteTable = '';
+    private $having  = array();
+    private $bindings = array();
 
     public function __construct($connection)
     {
@@ -28,59 +30,68 @@ class QueryBuilder
         return $this;
     }
 
-    // public function WHERE($conditions)
-    // {
-    //     foreach ($conditions as $column => $value) {
-    //         $escaped = $this->conn->real_escape_string($value);
-    //         $this->where[] = "`$column` = '$escaped'";
-    //     }
-    //     return $this;
-    // }
-
-    // public function ORDERBY($column, $direction = 'ASC')
-    // {
-    //     $this->orderBy = "ORDER BY `$column` $direction";
-    //     return $this;
-    // }
-    public function ORDERBY($column, $direction = 'ASC')
-    {
-        if (strpos($column, '.') !== false) {
-            $this->orderBy = "ORDER BY $column $direction";
-        } else {
-            $this->orderBy = "ORDER BY `$column` $direction";
-        }
-
-        return $this;
-    }
-    public function GROUPBY($column)
-    {
-        $columnWrap = $this->wrapColumn($column); // already wrapped
-        $this->groupBy = "GROUP BY $columnWrap";   // do NOT add extra backticks
-        return $this;
-    }
-
-
-    public function LIMIT($limit, $offset = null)
-    {
-        $this->limit = $offset !== null ? "LIMIT $offset, $limit" : "LIMIT $limit";
-        return $this;
-    }
-
-    // -----------------------
-    // MAGIC METHOD for JOIN
-    // -----------------------
     public function __call($name, $arguments)
     {
-        // PHP 5.6: No str_ends_with(). We'll compare manually.
-        $callName = strtoupper($name);
-        if (substr($callName, -4) === 'JOIN' && count($arguments) === 2) {
-            $type = strtoupper(str_replace('JOIN', '', $name)); // e.g., LEFT, RIGHT, INNER, CROSS
-            if ($type === '') $type = ''; // plain JOIN if no prefix
-            $table = $arguments[0];
-            $on = $arguments[1];
-            // $this->joins .= " {$type} JOIN `$table` ON $on";
-            $this->joins .= " {$type} JOIN " . $this->formatTable($table) . " ON $on";
+        $upper = strtoupper($name);
+        $aliases = array(
+            'SELECT'           => 'SELECT',
+            'WHERE'            => 'WHERE',
+            'OR_WHERE'         => 'OR_WHERE',
+            'AND_WHERE'        => 'AND_WHERE',
+            'WHERE_IN'         => 'WHERE_IN',
+            'WHERE_NOT_IN'     => 'WHERE_NOT_IN',
+            'WHERE_BETWEEN'    => 'WHERE_BETWEEN',
+            'WHERE_LIKE'       => 'WHERE_LIKE',
+            'WHERE_NOT_LIKE'   => 'WHERE_NOT_LIKE',
+            'WHERE_NULL'       => 'WHERE_NULL',
+            'WHERE_NOT_NULL'   => 'WHERE_NOT_NULL',
+            'WHERE_EXISTS'     => 'WHERE_EXISTS',
+            'WHERE_NOT_EXISTS' => 'WHERE_NOT_EXISTS',
+            'ORDERBY'          => 'ORDERBY',
+            'GROUPBY'          => 'GROUPBY',
+            'HAVING'           => 'HAVING',
+            'LIMIT'            => 'LIMIT',
 
+            // Execution
+            'GET'              => 'get',
+            'FIRST'            => 'first',
+            'COUNT'            => 'COUNT',
+            'SUM'              => 'SUM',
+            'AVG'              => 'AVG',
+            'MIN'              => 'MIN',
+            'MAX'              => 'MAX',
+            'PAGINATE'         => 'paginate',
+            'GETSQL'           => 'getSql',
+            'RESET'            => 'reset',
+
+            // Write operations
+            'INSERT'           => 'INSERT',
+            'INSERT_BATCH'     => 'INSERT_BATCH',
+            'UPDATE'           => 'UPDATE',
+            'DELETE'           => 'DELETE',
+            'UPSERT'           => 'UPSERT',
+            'TRUNCATE'         => 'TRUNCATE',
+
+            // Misc
+            'RAW'              => 'RAW',
+            'TRANSACTION'      => 'transaction',
+            'JOIN_SUB'         => 'JOIN_SUB',
+            'BEGIN'            => 'begin',
+            'COMMIT'           => 'commit',
+            'ROLLBACK'         => 'rollback',
+        );
+
+        if (isset($aliases[$upper])) {
+            $realMethod = $aliases[$upper];
+            return call_user_func_array(array($this, $realMethod), $arguments);
+        }
+
+        if (substr($upper, -4) === 'JOIN' && count($arguments) === 2) {
+            $type      = trim(substr($upper, 0, -4));
+            $table     = $arguments[0];
+            $on        = $arguments[1];
+            $keyword   = $type ? "{$type} JOIN" : "JOIN";
+            $this->joins .= " $keyword " . $this->formatTable($table) . " ON $on";
             return $this;
         }
 
@@ -103,6 +114,10 @@ class QueryBuilder
 
         if (!empty($this->groupBy)) {
             $sql .= ' ' . $this->groupBy;
+        }
+
+        if (!empty($this->having)) {
+            $sql .= ' HAVING ' . implode(' AND ', $this->having);
         }
 
         if (!empty($this->orderBy)) {
@@ -136,19 +151,42 @@ class QueryBuilder
      *
      * @return string
      */
-    public function getSql()
+    public function ToSQL()
     {
         return $this->buildQuery();
     }
-
     public function first()
     {
         $results = $this->LIMIT(1)->get();
         return isset($results[0]) ? $results[0] : null;
     }
+    /**
+     * Begin a transaction.
+     */
+    public function begin()
+    {
+        $this->conn->begin_transaction();
+        return $this;
+    }
 
+    /**
+     * Commit the current transaction.
+     */
+    public function commit()
+    {
+        $this->conn->commit();
+        return $this;
+    }
 
-
+    /**
+     * Roll back the current transaction.
+     */
+    public function rollback()
+    {
+        $this->conn->rollback();
+        return $this;
+    }
+    // reset sql functions
     public function reset()
     {
         $this->select = '*';
@@ -158,6 +196,8 @@ class QueryBuilder
         $this->orderBy = '';
         $this->limit = '';
         $this->groupBy = '';
+        $this->having   = array();
+        $this->bindings = array();
         return $this;
     }
 
@@ -372,8 +412,8 @@ class QueryBuilder
             }
 
             $sql = "UPDATE `{$this->updateTable}` 
-                SET " . implode(', ', $set) . "
-                WHERE " . implode(' AND ', $this->where);
+            SET " . implode(', ', $set) . "
+            WHERE " . implode(' AND ', $this->where);
 
             $result = $this->conn->query($sql);
             $affectedRows = $this->conn->affected_rows;
@@ -392,7 +432,7 @@ class QueryBuilder
 
         if ($this->deleteTable) {
             $sql = "DELETE FROM `{$this->deleteTable}` 
-                WHERE " . implode(' AND ', $this->where);
+            WHERE " . implode(' AND ', $this->where);
 
             $result = $this->conn->query($sql);
             $affectedRows = $this->conn->affected_rows;
@@ -461,7 +501,6 @@ class QueryBuilder
 
         return $this;
     }
-
     public function WHERE_IN($column, array $values)
     {
         if (empty($values)) {
@@ -484,7 +523,6 @@ class QueryBuilder
         $this->where[] = "$columnSql IN (" . implode(',', $escaped) . ")";
         return $this;
     }
-
     public function WHERE_NOT_IN($column, array $values)
     {
         if (empty($values)) {
@@ -507,8 +545,6 @@ class QueryBuilder
         $this->where[] = "$columnSql NOT IN (" . implode(',', $escaped) . ")";
         return $this;
     }
-
-
     public function WHERE_BETWEEN($column, $start, $end)
     {
         $startEscaped = $this->conn->real_escape_string($start);
@@ -526,6 +562,431 @@ class QueryBuilder
 
         $this->where[] = "$columnSql BETWEEN '$startEscaped' AND '$endEscaped'";
         return $this;
+    }
+    /**
+     * Add a WHERE column IS NULL condition.
+     *
+     * @param string $column
+     * @return $this
+     */
+    public function WHERE_NULL($column)
+    {
+        $col = $this->wrapColumn($column);
+        $this->where[] = "$col IS NULL";
+        return $this;
+    }
+
+    /**
+     * Add a WHERE column IS NOT NULL condition.
+     *
+     * @param string $column
+     * @return $this
+     */
+    public function WHERE_NOT_NULL($column)
+    {
+        $col = $this->wrapColumn($column);
+        $this->where[] = "$col IS NOT NULL";
+        return $this;
+    }
+
+    /**
+     * Add a WHERE column LIKE condition.
+     * Wildcards (%, _) in $pattern are preserved; the rest is escaped.
+     *
+     * @param string $column
+     * @param string $pattern  e.g. '%john%', 'smith%', '%@gmail.com'
+     * @return $this
+     */
+    public function WHERE_LIKE($column, $pattern)
+    {
+        // Split on wildcard chars, escape the non-wildcard parts, then reassemble
+        $parts    = preg_split('/([%_])/', $pattern, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $escaped  = '';
+        foreach ($parts as $part) {
+            if ($part === '%' || $part === '_') {
+                $escaped .= $part;
+            } else {
+                $escaped .= $this->conn->real_escape_string($part);
+            }
+        }
+
+        $col = $this->wrapColumn($column);
+        $this->where[] = "$col LIKE '$escaped'";
+        return $this;
+    }
+
+    /**
+     * Add a WHERE column NOT LIKE condition.
+     *
+     * @param string $column
+     * @param string $pattern
+     * @return $this
+     */
+    public function WHERE_NOT_LIKE($column, $pattern)
+    {
+        $parts   = preg_split('/([%_])/', $pattern, -1, PREG_SPLIT_DELIM_CAPTURE);
+        $escaped = '';
+        foreach ($parts as $part) {
+            if ($part === '%' || $part === '_') {
+                $escaped .= $part;
+            } else {
+                $escaped .= $this->conn->real_escape_string($part);
+            }
+        }
+
+        $col = $this->wrapColumn($column);
+        $this->where[] = "$col NOT LIKE '$escaped'";
+        return $this;
+    }
+
+    /**
+     * Add a HAVING condition (for use with GROUP BY).
+     * Accepts a raw SQL string or an associative array.
+     *
+     * @param string|array $conditions
+     * @return $this
+     */
+    public function HAVING($conditions)
+    {
+        if (!isset($this->having)) {
+            $this->having = array();
+        }
+
+        if (is_string($conditions)) {
+            $this->having[] = $conditions;
+        } elseif (is_array($conditions)) {
+            foreach ($conditions as $column => $value) {
+                $escaped        = $this->conn->real_escape_string($value);
+                $this->having[] = "$column = '$escaped'";
+            }
+        } else {
+            throw new \InvalidArgumentException("HAVING expects array or raw SQL string");
+        }
+
+        return $this;
+    }
+
+    /**
+     * Add a JOIN where the table can be a name, a raw SQL subquery string,
+     * or a closure that receives a fresh QueryBuilder and returns it.
+     *
+     * @param string          $type   JOIN type: LEFT, RIGHT, INNER, CROSS, or ''
+     * @param string|callable $table  Table name, raw "(SELECT ...) alias", or closure
+     * @param string          $on     ON condition
+     * @return $this
+     */
+    public function JOIN_SUB($type, $table, $on)
+    {
+        $type = strtoupper(trim($type));
+
+        if ($table instanceof \Closure) {
+            // Pass a fresh builder; caller returns it after building the subquery
+            $sub   = new self($this->conn);
+            $built = $table($sub);
+
+            if (!($built instanceof self)) {
+                throw new \InvalidArgumentException("JOIN_SUB closure must return the QueryBuilder instance");
+            }
+
+            $subSql = $built->buildQuery();
+            // Caller must embed an alias in the ON clause or append it to the closure result;
+            // require the alias to be the last word before the ON clause.
+            // We wrap it safely:
+            $tableExpr = "($subSql)";
+        } elseif (is_string($table) && strpos(ltrim($table), '(') === 0) {
+            // Raw subquery string already provided e.g. "(SELECT ...) alias"
+            $tableExpr = $table;
+        } else {
+            // Plain table name — delegate to existing formatTable
+            $tableExpr = $this->formatTable($table);
+        }
+
+        $keyword       = $type ? "{$type} JOIN" : "JOIN";
+        $this->joins  .= " $keyword $tableExpr ON $on";
+
+        return $this;
+    }
+
+    /**
+     * Insert multiple rows into a table in one query.
+     *
+     * @param string $table
+     * @param array  $rows  Array of associative arrays — all must share the same keys
+     * @return int          Number of affected rows
+     */
+    public function INSERT_BATCH($table, array $rows)
+    {
+        if (empty($rows)) {
+            throw new \InvalidArgumentException("INSERT_BATCH requires at least one row");
+        }
+
+        // Derive columns from the first row; all subsequent rows must match
+        $columns    = array_keys($rows[0]);
+        $colsSql    = '`' . implode('`, `', $columns) . '`';
+        $valueSets  = array();
+
+        foreach ($rows as $index => $row) {
+            if (array_keys($row) !== $columns) {
+                throw new \InvalidArgumentException(
+                    "INSERT_BATCH: row $index has different keys than row 0"
+                );
+            }
+
+            $vals = array();
+            foreach ($row as $value) {
+                $vals[] = is_null($value)
+                    ? 'NULL'
+                    : "'" . $this->conn->real_escape_string($value) . "'";
+            }
+            $valueSets[] = '(' . implode(', ', $vals) . ')';
+        }
+
+        $sql    = "INSERT INTO `$table` ($colsSql) VALUES " . implode(', ', $valueSets);
+        $result = $this->conn->query($sql);
+
+        if (!$result) {
+            throw new \Exception("MySQL Insert Batch Error: " . $this->conn->error . "\nQuery: $sql");
+        }
+
+        return $this->conn->affected_rows;
+    }
+
+    /**
+     * Return COUNT of rows matching the current WHERE conditions.
+     *
+     * @param string $column  Column to count (default *)
+     * @return int
+     */
+    public function COUNT($column = '*')
+    {
+        $col         = ($column === '*') ? '*' : $this->wrapColumn($column);
+        $this->select = "COUNT($col) AS __agg";
+        $row          = $this->first();
+        return $row ? (int) $row->__agg : 0;
+    }
+
+    /**
+     * Return SUM of a column matching the current WHERE conditions.
+     *
+     * @param string $column
+     * @return float|null
+     */
+    public function SUM($column)
+    {
+        $col          = $this->wrapColumn($column);
+        $this->select = "SUM($col) AS __agg";
+        $row          = $this->first();
+        return $row ? (float) $row->__agg : null;
+    }
+
+    /**
+     * Return AVG of a column matching the current WHERE conditions.
+     *
+     * @param string $column
+     * @return float|null
+     */
+    public function AVG($column)
+    {
+        $col          = $this->wrapColumn($column);
+        $this->select = "AVG($col) AS __agg";
+        $row          = $this->first();
+        return $row ? (float) $row->__agg : null;
+    }
+
+    /**
+     * Return MIN value of a column matching the current WHERE conditions.
+     *
+     * @param string $column
+     * @return mixed
+     */
+    public function MIN($column)
+    {
+        $col          = $this->wrapColumn($column);
+        $this->select = "MIN($col) AS __agg";
+        $row          = $this->first();
+        return $row ? $row->__agg : null;
+    }
+
+    /**
+     * Return MAX value of a column matching the current WHERE conditions.
+     *
+     * @param string $column
+     * @return mixed
+     */
+    public function MAX($column)
+    {
+        $col          = $this->wrapColumn($column);
+        $this->select = "MAX($col) AS __agg";
+        $row          = $this->first();
+        return $row ? $row->__agg : null;
+    }
+
+
+    /**
+     * Fetch a paginated result set.
+     *
+     * Runs two queries: one for the current page rows, one for the total count.
+     * All previously chained SELECT / WHERE / JOIN / ORDER BY conditions apply.
+     *
+     * @param int $perPage  Rows per page
+     * @param int $page     1-based page number
+     * @return array {
+     *     data:         array of row objects,
+     *     total:        int total matching rows,
+     *     per_page:     int,
+     *     current_page: int,
+     *     last_page:    int,
+     *     from:         int first row index (1-based),
+     *     to:           int last row index (1-based)
+     * }
+     */
+    public function paginate($perPage = 15, $page = 1)
+    {
+        $page    = max(1, (int) $page);
+        $perPage = max(1, (int) $perPage);
+        $offset  = ($page - 1) * $perPage;
+
+        // ── Count query: preserve joins + where, strip select/order/limit
+        $savedSelect  = $this->select;
+        $savedOrderBy = $this->orderBy;
+        $savedLimit   = $this->limit;
+
+        $this->select  = 'COUNT(*) AS __total';
+        $this->orderBy = '';
+        $this->limit   = '';
+
+        $countRow = $this->first();
+        $total    = $countRow ? (int) $countRow->__total : 0;
+
+        // ── Restore and fetch the actual page
+        $this->select  = $savedSelect;
+        $this->orderBy = $savedOrderBy;
+        $this->LIMIT($perPage, $offset);
+
+        $data = $this->get();
+
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $from     = $total > 0 ? $offset + 1 : 0;
+        $to       = min($offset + $perPage, $total);
+
+        return array(
+            'data'         => $data,
+            'total'        => $total,
+            'per_page'     => $perPage,
+            'current_page' => $page,
+            'last_page'    => $lastPage,
+            'from'         => $from,
+            'to'           => $to,
+        );
+    }
+
+
+    /**
+     * Execute a callable inside a database transaction.
+     *
+     * The callable receives this QueryBuilder instance.
+     * Return value of the callable is returned from transaction().
+     * Any exception causes a ROLLBACK and is re-thrown.
+     *
+     * @param callable $callback  function(QueryBuilder $db) { ... }
+     * @return mixed              Whatever the callback returns
+     * @throws \Exception         Re-throws any exception after rolling back
+     */
+    public function transaction(callable $callback)
+    {
+        $this->conn->begin_transaction();
+
+        try {
+            $result = $callback($this);
+            $this->conn->commit();
+            return $result;
+        } catch (\Exception $e) {
+            $this->conn->rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Add a WHERE EXISTS (subquery) condition.
+     *
+     * @param string|callable $subquery  Raw SQL string or closure receiving a fresh QueryBuilder
+     * @return $this
+     */
+    public function WHERE_EXISTS($subquery)
+    {
+        $sql = $this->resolveSubquery($subquery);
+        $this->where[] = "EXISTS ($sql)";
+        return $this;
+    }
+
+    /**
+     * Add a WHERE NOT EXISTS (subquery) condition.
+     *
+     * @param string|callable $subquery  Raw SQL string or closure receiving a fresh QueryBuilder
+     * @return $this
+     */
+    public function WHERE_NOT_EXISTS($subquery)
+    {
+        $sql = $this->resolveSubquery($subquery);
+        $this->where[] = "NOT EXISTS ($sql)";
+        return $this;
+    }
+
+    /**
+     * Internal helper — resolve a subquery from a closure or raw string.
+     *
+     * @param string|callable $subquery
+     * @return string
+     */
+    private function resolveSubquery($subquery)
+    {
+        if ($subquery instanceof \Closure) {
+            $sub   = new self($this->conn);
+            $built = $subquery($sub);
+
+            if (!($built instanceof self)) {
+                throw new \InvalidArgumentException("Subquery closure must return the QueryBuilder instance");
+            }
+
+            return $built->buildQuery();
+        }
+
+        if (is_string($subquery)) {
+            return $subquery;
+        }
+
+        throw new \InvalidArgumentException("Subquery must be a string or closure");
+    }
+
+
+    /**
+     * Truncate a table — removes all rows and resets AUTO_INCREMENT.
+     * Cannot be rolled back in most MySQL storage engines.
+     *
+     * @param string $table
+     * @param bool   $safe   When true, uses DELETE FROM instead of TRUNCATE
+     *                       (safe for foreign key constraints and transaction support)
+     * @return bool
+     */
+    public function TRUNCATE($table, $safe = false)
+    {
+        if (empty($table)) {
+            throw new \Exception("Table name is required for TRUNCATE");
+        }
+
+        if ($safe) {
+            $sql = "DELETE FROM " . $this->formatTable($table);
+        } else {
+            $sql = "TRUNCATE TABLE " . $this->formatTable($table);
+        }
+
+        $result = $this->conn->query($sql);
+
+        if (!$result) {
+            throw new \Exception("MySQL Truncate Error: " . $this->conn->error . "\nQuery: $sql");
+        }
+
+        return true;
     }
 
     private function formatTable($table)
